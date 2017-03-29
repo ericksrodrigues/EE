@@ -1,0 +1,242 @@
+<!doctype html>
+<html>
+	<head charset="utf-8">
+	<title>Teste 1 </title>
+	<style>
+		canvas {
+			position: absolute;
+			top: 0px;
+			bottom: 0px;
+			left: 0px;
+			right: 0px;
+			margin: auto;
+		}
+	</style>
+	</head>
+	<body>
+		<script>
+			var canvas, ctx, ALTURA, LARGURA, frames = 0, gravidade = 1, vento = -0.2, best_bloco,geracao_sucesso,geracao_total,
+			solo = {
+				y: 550,
+				altura: 50,
+				cor: "green",
+
+				draw: function(){
+
+					ctx.fillStyle = this.cor;
+					ctx.fillRect(0,this.y, LARGURA, this.altura);
+				}
+			},
+			bloco_origem = {
+				x: 25,
+				y: 540,
+				altura: 10,
+				largura: 10,
+				forca: 1,
+				angulo: 1,
+				velocidade_y: 0,
+				velocidade_x: 0,
+				q_forca: 0.2,
+				q_angulo: 0.2,
+				cor: "red",
+				fitness: false,
+
+				start : function(){
+					this.velocidade_y = (-1)*Math.sin(this.angulo * Math.PI / 180) * this.forca;
+					this.velocidade_x = Math.cos(this.angulo * Math.PI / 180 )* this.forca;
+				},
+
+				draw : function(){
+					ctx.fillStyle = this.cor;
+					ctx.fillRect(this.x,this.y,this.altura,this.largura);
+				},
+
+				reset: function(){
+					let flag = false;
+					this.velocidade_y = 0;
+					this.velocidade_x = 0;
+					if(this.angulo < 0)
+						this.angulo = 0;
+					if(this.angulo > 180)
+						this.angulo = 180;
+					this.fitness = fitness(this);
+					
+
+					if(this.fitness != 0){
+						console.log("BEST FITNESS", best_bloco.fitness, "FITNESS GERAÇÃO ATUAL:", this.fitness);
+						console.log("BEST_ANGULO",best_bloco.angulo, "ANGULO GERAÇÃO ATUAL", this.angulo);
+						console.log("BEST_FORCA", best_bloco.forca, "ATUAL", this.forca);
+						this.y = solo.y - this.altura;
+						this.x = 25;
+						geracao_total++;
+						if(!best_bloco.fitness || this.fitness < best_bloco.fitness){
+							best_bloco = gerarBloco(this.angulo,this.forca,this.fitness);
+							geracao_sucesso++;
+						}
+						this.forca = mutacao(best_bloco.forca,this.q_forca);
+						this.q_forca = mutacao_q(this.q_forca);
+						if(this.forca < 0){
+							this.forca = 0.0001;
+						}
+						this.q_angulo = mutacao_q(this.q_angulo);
+						this.angulo = mutacao(best_bloco.angulo,this.q_angulo);
+						this.fitness = false;
+						this.start();
+					}else if(this.fitness == 0 && flag == false){
+						best_bloco = gerarBloco(this.angulo,this.forca,this.fitness);
+						console.log("BEST FITNESS", best_bloco.fitness);
+						console.log("BEST_ANGULO",best_bloco.angulo);
+						console.log("BEST_FORCA", best_bloco.forca);
+						flag = true;
+					}
+				},
+
+				update: function(){		
+
+
+					if(this.y < solo.y - this.altura){
+						this.velocidade_y += gravidade;
+						this.velocidade_x -= vento;
+					}
+					this.y += this.velocidade_y;
+					this.x += this.velocidade_x;
+					if(this.y > solo.y - this.altura)
+						this.reset();
+
+				}
+			},
+
+			bloco_destino = {
+				x: 800,
+				y: 530,
+				altura: 20,
+				largura: 50,
+				cor: "purple",
+
+				draw: function(){
+					ctx.fillStyle = this.cor;
+					ctx.fillRect(this.x,this.y,this.largura,this.altura);
+				}
+			}
+
+
+			function run(){
+				update();
+				draw();
+				window.requestAnimationFrame(run);
+			}
+
+			function update(){
+				frames++;
+				ctx.fillStyle = "#50beff";
+				ctx.fillRect(0,0,LARGURA,ALTURA);
+
+				bloco_origem.update();
+				
+			}
+
+			function draw(){
+				bloco_destino.draw();
+				bloco_origem.draw();
+				solo.draw();
+
+			}
+			function main(){
+				ALTURA = window.innerHeight;
+				LARGURA = window.innerWidth;
+
+				ALTURA = 600;
+				LARGURA = 1000;
+
+				canvas = document.createElement('canvas');
+				canvas.width = LARGURA;
+				canvas.height = ALTURA;
+				canvas.style.border = "1px solid #000";
+				ctx = canvas.getContext("2d");
+				document.body.appendChild(canvas);
+				best_bloco = gerarBloco(bloco_origem.angulo,bloco_origem.força,bloco_origem.fitness);
+				bloco_origem.start();
+				run();
+			}
+			main();
+
+				function fitness(bloco){
+					if(bloco.x + bloco.largura < bloco_destino.x ){
+						return bloco_destino.x - (bloco.x + bloco.largura);
+					}else if(bloco.x > bloco_destino.largura + bloco_destino.x){
+						return bloco.x - (bloco_destino.x - bloco_destino.largura);
+					}else{
+						return 0; 
+					}
+				}
+
+			function mutacao_q(q){
+				if(geracao_sucesso/geracao_total > 1/5)
+					return q/(0.8 + Math.random()*0.2);
+				else if(geracao_sucesso/geracao_total < 1/5)
+					return q*0.8 + Math.random()*0.2;
+				else
+					return q;
+			}
+
+			function mutacao(valor, q){
+				let random = (Math.random() < 0.5) ? -1 : 1;
+				return valor + random*gauss(q);
+			}
+
+			function gauss(q){
+				let x = Math.random() * q * 3;
+				let n = (1.0/Math.sqrt(q*q*Math.PI))*Math.exp((x*x/q*q)*(-1/2));
+				return n;
+			}
+
+			function gerarBloco(angulo,forca,fitness){
+				return {
+					x: 25,
+					y: 540,
+					altura: 10,
+					largura: 10,
+					"forca": forca,
+					"angulo": angulo,
+					"fitness": fitness,
+					q_forca: 0.2,
+					q_angulo: 0.2,
+					velocidade_y: 0,
+					velocidade_x: 0,
+					cor: "red",
+
+					start : function(){
+						this.velocidade_y = (-1)*Math.round(Math.sin(this.angulo * Math.PI / 180) * this.forca),
+						this.velocidade_x = Math.round(Math.cos(this.angulo * Math.PI / 180) * this.forca)
+					},
+
+					draw : function(){
+						ctx.fillStyle = this.cor;
+						ctx.fillRect(this.x,this.y,this.altura,this.largura);
+					},
+
+					reset: function(){
+						this.velocidade_y = 0;
+						this.velocidade_x = 0;
+						this.y = solo.y - this.altura;
+					},
+
+					update: function(){
+						
+
+
+						if(this.y < solo.y - this.altura){
+							this.velocidade_y += gravidade;
+							this.velocidade_x -= vento;
+						}
+						this.y += this.velocidade_y;
+						this.x += this.velocidade_x;
+						if(this.y > solo.y - this.altura)
+							this.reset();
+
+				}
+			}
+			}
+		</script>
+	</body>
+</html>
